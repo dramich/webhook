@@ -3,6 +3,7 @@ package admission
 import (
 	"context"
 	"net/http"
+	"time"
 
 	"github.com/rancher/dynamiclistener"
 	"github.com/rancher/dynamiclistener/server"
@@ -42,7 +43,7 @@ func ListenAndServe(ctx context.Context, cfg *rest.Config) error {
 	return listenAndServe(ctx, cfg, handler)
 }
 
-func listenAndServe(ctx context.Context, cfg *rest.Config, handler http.Handler) (rErr error) {
+func listenAndServe(ctx context.Context, cfg *rest.Config, handler http.Handler) error {
 	apply, err := apply.NewForConfig(cfg)
 	if err != nil {
 		return err
@@ -154,14 +155,7 @@ func listenAndServe(ctx context.Context, cfg *rest.Config, handler http.Handler)
 		})
 	})
 
-	defer func() {
-		if rErr != nil {
-			return
-		}
-		rErr = coreControllers.Start(ctx, 1)
-	}()
-
-	return server.ListenAndServe(ctx, 9443, 0, handler, &server.ListenOpts{
+	err = server.ListenAndServe(ctx, 9443, 0, handler, &server.ListenOpts{
 		Secrets:       coreControllers.Core().V1().Secret(),
 		CertNamespace: namespace,
 		CertName:      certName,
@@ -174,6 +168,13 @@ func listenAndServe(ctx context.Context, cfg *rest.Config, handler http.Handler)
 			FilterCN:              only(tlsName),
 		},
 	})
+	if err != nil {
+		return err
+	}
+
+	time.Sleep(15 * time.Second)
+
+	return coreControllers.Start(ctx, 1)
 }
 
 func only(str string) func(...string) []string {
