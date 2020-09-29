@@ -10,6 +10,7 @@ import (
 	"github.com/rancher/wrangler/pkg/apply"
 	"github.com/rancher/wrangler/pkg/generated/controllers/core"
 	"github.com/rancher/wrangler/pkg/schemes"
+	"github.com/sirupsen/logrus"
 	v1 "k8s.io/api/admissionregistration/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -60,6 +61,10 @@ func listenAndServe(ctx context.Context, cfg *rest.Config, handler http.Handler)
 		if secret == nil || secret.Name != caName || len(secret.Data[corev1.TLSCertKey]) == 0 {
 			return nil, nil
 		}
+
+		logrus.Info("Sleeping for 15 seconds then applying webhook config")
+		// Sleep here to make sure server is listening and all caches are primed
+		time.Sleep(15 * time.Second)
 
 		return secret, apply.WithOwner(secret).ApplyObjects(&v1.ValidatingWebhookConfiguration{
 			ObjectMeta: metav1.ObjectMeta{
